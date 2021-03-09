@@ -62,7 +62,7 @@ func downloadAndRun(filename, url, rawCommands string) {
 	defer response.Body.Close()
 
 	if response.StatusCode != 200 {
-		fmt.Println(err.Error())
+		fmt.Printf("status code : %d \n",response.StatusCode)
 		os.Exit(1)
 	}
 	//Create an empty file
