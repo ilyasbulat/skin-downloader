@@ -23,11 +23,12 @@ type SkinData struct {
 	OnUpdate   string `json:"oc_update,omitempty"`
 	Resolution string `json:"resolution,omitempty"`
 	Angle      string `json:"angle,omitempty"`
+	Volume     string `json:"volume,omitempty"`
 	MD5        string `json:"md_5,omitempty"`
 }
 
 func main() {
-	url := os.Getenv("URL")+ "/skin?macaddress=" + getMac("wlan0")
+	url := os.Getenv("URL") + "/skin?macaddress=" + getMac("wlan0")
 	resp, err := http.Get(url)
 	if err != nil {
 		log.Fatal(err)
@@ -47,7 +48,7 @@ func main() {
 	if localMD5 == "none" {
 		//download and run on create cmd`s
 		downloadAndRun(filename, downloadURL, data.OnCreate)
-	}else if localMD5 != data.MD5 {
+	} else if localMD5 != data.MD5 {
 		//download and run on update cmd`s
 		downloadAndRun(filename, downloadURL, data.OnUpdate)
 	}
@@ -55,7 +56,7 @@ func main() {
 	// check vars file if not exists create and put vars in there
 	// if exists check vars if they not equals rewrite them
 	// ignore otherwise
-	newVars := fmt.Sprintf("RES=%s\nANGLE=%s", data.Resolution, data.Angle)
+	newVars := fmt.Sprintf("RES=%s\nANGLE=%s\nVOL=%s", data.Resolution, data.Angle,data.Volume)
 	if checkVars(newVars) {
 		writeToFile(newVars)
 	}
