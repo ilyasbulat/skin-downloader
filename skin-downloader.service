@@ -1,0 +1,13 @@
+[Unit]
+Description=Skin Downloader
+
+[Service]
+User = root
+Group = root
+Type = simple
+WorkingDirectory=/home/lm/chronos/skin-downloader
+ExecStart=/home/lm/chronos/skin-downloader/skin-downloader
+Restart = always
+RestartSec = 60
+[Install]
+WantedBy=multi-user.target

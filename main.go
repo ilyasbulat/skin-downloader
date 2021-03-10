@@ -16,12 +16,14 @@ import (
 )
 
 type SkinData struct {
-	ID       int    `json:"id,omitempty"`
-	Type     string `json:"type,omitempty"`
-	Path     string `json:"path,omitempty"`
-	OnCreate string `json:"on_create,omitempty"`
-	OnUpdate string `json:"oc_update,omitempty"`
-	MD5      string `json:"md_5,omitempty"`
+	ID         int    `json:"id,omitempty"`
+	Type       string `json:"type,omitempty"`
+	Path       string `json:"path,omitempty"`
+	OnCreate   string `json:"on_create,omitempty"`
+	OnUpdate   string `json:"oc_update,omitempty"`
+	Resolution string `json:"resolution,omitempty"`
+	Angle      string `json:"angle,omitempty"`
+	MD5        string `json:"md_5,omitempty"`
 }
 
 func main() {
@@ -45,12 +47,40 @@ func main() {
 	if localMD5 == "none" {
 		//download and run on create cmd`s
 		downloadAndRun(filename, downloadURL, data.OnCreate)
-		os.Exit(0)
-	}
-	if localMD5 != data.MD5 {
+	}else if localMD5 != data.MD5 {
+		//download and run on update cmd`s
 		downloadAndRun(filename, downloadURL, data.OnUpdate)
+	}
+
+	// check vars file if not exists create and put vars in there
+	// if exists check vars if they not equals rewrite them
+	// ignore otherwise
+	checkVars(data.Resolution, data.Angle)
+}
+
+func checkVars(res, angle string) {
+	newVars := fmt.Sprintf("RES=%s\nANGLE=%s", res, angle)
+	content, err := ioutil.ReadFile("vars")
+	if err != nil {
+		writeToFile(newVars)
 		os.Exit(0)
 	}
+	oldVars := string(content)
+
+	if oldVars != newVars {
+		writeToFile(newVars)
+		os.Exit(0)
+	}
+}
+
+func writeToFile(newVars string) {
+	vars, err := os.Create("vars")
+	if err != nil {
+		fmt.Println("trying to write vars: ", err.Error())
+		os.Exit(1)
+	}
+	defer vars.Close()
+	vars.WriteString(newVars)
 }
 
 func downloadAndRun(filename, url, rawCommands string) {
@@ -62,7 +92,7 @@ func downloadAndRun(filename, url, rawCommands string) {
 	defer response.Body.Close()
 
 	if response.StatusCode != 200 {
-		fmt.Printf("status code : %d \n",response.StatusCode)
+		fmt.Printf("status code : %d \n", response.StatusCode)
 		os.Exit(1)
 	}
 	//Create an empty file
