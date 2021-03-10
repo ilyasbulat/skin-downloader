@@ -55,22 +55,24 @@ func main() {
 	// check vars file if not exists create and put vars in there
 	// if exists check vars if they not equals rewrite them
 	// ignore otherwise
-	checkVars(data.Resolution, data.Angle)
+	newVars := fmt.Sprintf("RES=%s\nANGLE=%s", data.Resolution, data.Angle)
+	if checkVars(newVars) {
+		writeToFile(newVars)
+	}
 }
 
-func checkVars(res, angle string) {
-	newVars := fmt.Sprintf("RES=%s\nANGLE=%s", res, angle)
+func checkVars(newVars string) bool {
+
 	content, err := ioutil.ReadFile("vars")
 	if err != nil {
-		writeToFile(newVars)
-		os.Exit(0)
+		return true
 	}
 	oldVars := string(content)
 
 	if oldVars != newVars {
-		writeToFile(newVars)
-		os.Exit(0)
+		return true
 	}
+	return false
 }
 
 func writeToFile(newVars string) {
