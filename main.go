@@ -27,7 +27,7 @@ type SkinData struct {
 }
 
 func main() {
-	url := os.Getenv("URL") + getMac("wlan0")
+	url := os.Getenv("URL")+ "/skin?macaddress=" + getMac("wlan0")
 	resp, err := http.Get(url)
 	if err != nil {
 		log.Fatal(err)
