@@ -115,8 +115,9 @@ func downloadAndRun(filename, url, rawCommands string) {
 	for _, command := range commands {
 		args := strings.Split(command, " ")
 		name := args[0]
+		fmt.Println("exec ", name , args[1:])
 		output, err := exec.Command(name, args[1:]...).Output()
-
+		fmt.Println(string(output))
 		if err != nil {
 			fmt.Println(err.Error())
 			os.Exit(1)
