@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	_ "github.com/joho/godotenv/autoload"
 	"io"
 	"io/ioutil"
 	"log"
@@ -13,6 +12,8 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+
+	_ "github.com/joho/godotenv/autoload"
 )
 
 type SkinData struct {
@@ -56,7 +57,7 @@ func main() {
 	// check vars file if not exists create and put vars in there
 	// if exists check vars if they not equals rewrite them
 	// ignore otherwise
-	newVars := fmt.Sprintf("RES=%s\nANGLE=%s\nVOL=%s", data.Resolution, data.Angle,data.Volume)
+	newVars := fmt.Sprintf("RES=%s\nANGLE=%s\nVOL=%s", data.Resolution, data.Angle, data.Volume)
 	if checkVars(newVars) {
 		writeToFile(newVars)
 	}
@@ -79,7 +80,7 @@ func checkVars(newVars string) bool {
 func writeToFile(newVars string) {
 	vars, err := os.Create("vars")
 	if err != nil {
-		fmt.Println("trying to write vars: ", err.Error())
+		log.Println("trying to write vars: ", err.Error())
 		os.Exit(1)
 	}
 	defer vars.Close()
@@ -89,40 +90,40 @@ func writeToFile(newVars string) {
 func downloadAndRun(filename, url, rawCommands string) {
 	response, err := http.Get(url)
 	if err != nil {
-		fmt.Println(err.Error())
+		log.Println(err.Error())
 		os.Exit(1)
 	}
 	defer response.Body.Close()
 
 	if response.StatusCode != 200 {
-		fmt.Printf("status code : %d \n", response.StatusCode)
+		log.Printf("status code : %d \n", response.StatusCode)
 		os.Exit(1)
 	}
 	//Create an empty file
 	file, err := os.Create(filename)
 	if err != nil {
-		fmt.Println(err.Error())
+		log.Println(err.Error())
 		os.Exit(1)
 	}
 	defer file.Close()
 	//Write the bytes to the file
 	_, err = io.Copy(file, response.Body)
 	if err != nil {
-		fmt.Println(err.Error())
+		log.Println(err.Error())
 		os.Exit(1)
 	}
 	commands := strings.Split(rawCommands, "\n")
 	for _, command := range commands {
 		args := strings.Split(command, " ")
 		name := args[0]
-		fmt.Println("exec ", name , args[1:])
+		log.Println("exec ", name, args[1:])
 		output, err := exec.Command(name, args[1:]...).Output()
-		fmt.Println(string(output))
+		log.Println(string(output))
 		if err != nil {
-			fmt.Println(err.Error())
+			log.Println(err.Error())
 			os.Exit(1)
 		}
-		fmt.Println(string(output))
+		log.Println(string(output))
 
 	}
 
