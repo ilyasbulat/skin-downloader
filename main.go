@@ -36,9 +36,11 @@ func main() {
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
+
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	var data SkinData
 	json.Unmarshal(body, &data)
 	splitPath := strings.Split(data.Path, "/")
@@ -71,10 +73,8 @@ func checkVars(newVars string) bool {
 	}
 	oldVars := string(content)
 
-	if oldVars != newVars {
-		return true
-	}
-	return false
+	return oldVars != newVars
+
 }
 
 func writeToFile(newVars string) {
@@ -121,10 +121,7 @@ func downloadAndRun(filename, url, rawCommands string) {
 		log.Println(string(output))
 		if err != nil {
 			log.Println(err.Error())
-			os.Exit(1)
 		}
-		log.Println(string(output))
-
 	}
 
 }
