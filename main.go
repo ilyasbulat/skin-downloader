@@ -6,17 +6,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
+	"time"
 
 	_ "github.com/joho/godotenv/autoload"
 )
 
-type SkinData struct {
+type skinData struct {
 	ID         int    `json:"id,omitempty"`
 	Type       string `json:"type,omitempty"`
 	Path       string `json:"path,omitempty"`
@@ -30,100 +31,90 @@ type SkinData struct {
 
 func main() {
 	url := os.Getenv("URL") + "/skin?macaddress=" + getMac("wlan0")
-	resp, err := http.Get(url)
+	data, err := request(url)
 	if err != nil {
-		log.Fatal(err)
-	}
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-
-	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
+		os.Exit(1)
 	}
 
-	var data SkinData
-	json.Unmarshal(body, &data)
-	splitPath := strings.Split(data.Path, "/")
-	filename := splitPath[len(splitPath)-1]
+	_, filename := filepath.Split(data.Path)
 	downloadURL := os.Getenv("PUBLIC") + data.Path
-	localMD5 := getMD5(filename)
+	if err := download(filename, downloadURL); err != nil {
+		log.Println(err)
+		os.Exit(1)
+	}
 
+	localMD5 := getMD5(filename)
 	if localMD5 == "none" {
 		//download and run on create cmd`s
-		downloadAndRun(filename, downloadURL, data.OnCreate)
+		execCommands(data.OnCreate)
 	} else if localMD5 != data.MD5 {
 		//download and run on update cmd`s
-		downloadAndRun(filename, downloadURL, data.OnUpdate)
+		execCommands(data.OnUpdate)
 	}
 
-	// check vars file if not exists create and put vars in there
-	// if exists check vars if they not equals rewrite them
-	// ignore otherwise
-	newVars := fmt.Sprintf("RES=%s\nANGLE=%s\nVOL=%s", data.Resolution, data.Angle, data.Volume)
+	vol := getVolume(data.Volume, data.Type)
+
+	newVars := fmt.Sprintf("RES=%s\nANGLE=%s\nVOL=%s", data.Resolution, data.Angle, vol)
 	if checkVars(newVars) {
 		writeToFile(newVars)
 	}
 }
 
-func checkVars(newVars string) bool {
-
-	content, err := ioutil.ReadFile("vars")
+func request(url string) (skinData, error) {
+	var data skinData
+	resp, err := http.Get(url)
 	if err != nil {
-		return true
+		return data, err
 	}
-	oldVars := string(content)
+	defer resp.Body.Close()
 
-	return oldVars != newVars
-
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return data, err
+	}
+	if err := json.Unmarshal(body, &data); err != nil {
+		return data, err
+	}
+	return data, nil
 }
 
-func writeToFile(newVars string) {
-	vars, err := os.Create("vars")
-	if err != nil {
-		log.Println("trying to write vars: ", err.Error())
-		os.Exit(1)
-	}
-	defer vars.Close()
-	vars.WriteString(newVars)
-}
-
-func downloadAndRun(filename, url, rawCommands string) {
+func download(filename, url string) error {
 	response, err := http.Get(url)
 	if err != nil {
-		log.Println(err.Error())
-		os.Exit(1)
+		return err
 	}
 	defer response.Body.Close()
 
 	if response.StatusCode != 200 {
-		log.Printf("status code : %d \n", response.StatusCode)
-		os.Exit(1)
+		return fmt.Errorf("status code : %d", response.StatusCode)
 	}
 	//Create an empty file
 	file, err := os.Create(filename)
 	if err != nil {
-		log.Println(err.Error())
-		os.Exit(1)
+		return err
 	}
 	defer file.Close()
 	//Write the bytes to the file
 	_, err = io.Copy(file, response.Body)
 	if err != nil {
-		log.Println(err.Error())
-		os.Exit(1)
+		return err
 	}
-	commands := strings.Split(rawCommands, "\n")
+	return nil
+}
+
+func execCommands(str string) {
+	commands := strings.Split(str, "\n")
 	for _, command := range commands {
 		args := strings.Split(command, " ")
 		name := args[0]
 		log.Println("exec ", name, args[1:])
 		output, err := exec.Command(name, args[1:]...).Output()
-		log.Println(string(output))
 		if err != nil {
 			log.Println(err.Error())
 		}
+		log.Println(string(output))
 	}
-
 }
 
 func getMD5(filePath string) string {
@@ -164,11 +155,62 @@ func getMac(itf string) string {
 	fileName := fmt.Sprintf("/sys/class/net/%s/address", itf)
 
 	var line string
-	file, err := ioutil.ReadFile(fileName)
+	file, err := os.ReadFile(fileName)
 	if err != nil {
 		return "None"
 	}
 	line = string(file)[0:17]
 
 	return line
+}
+
+// check vars file if not exists create and put vars in there
+// if exists check vars if they not equals rewrite them
+// ignore otherwise
+func getVolume(vol, skin string) string {
+	if skin != "h" && skin != "v" {
+		return vol
+	}
+
+	layout := "15"
+	t := time.Now().Format(layout)
+
+	check, _ := time.Parse(layout, t)
+	start, _ := time.Parse(layout, "22:00")
+	end, _ := time.Parse(layout, "07:00")
+
+	if inTimeSpan(start, end, check) {
+		vol = "-6000"
+	}
+	return vol
+}
+
+func checkVars(newVars string) bool {
+	content, err := os.ReadFile("vars")
+	if err != nil {
+		return true
+	}
+	oldVars := string(content)
+
+	return oldVars != newVars
+}
+
+func writeToFile(newVars string) error {
+	vars, err := os.Create("vars")
+	if err != nil {
+		return err
+	}
+	defer vars.Close()
+	_, err = vars.WriteString(newVars)
+	return err
+}
+
+func inTimeSpan(start, end, check time.Time) bool {
+	if start.Before(end) {
+		return !check.Before(start) && !check.After(end)
+	}
+	if start.Equal(end) {
+		return check.Equal(start)
+	}
+	return !start.After(check) || !end.Before(check)
 }
