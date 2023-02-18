@@ -39,25 +39,38 @@ func main() {
 
 	_, filename := filepath.Split(data.Path)
 	downloadURL := os.Getenv("PUBLIC") + data.Path
-	if err := download(filename, downloadURL); err != nil {
-		log.Println(err)
-		os.Exit(1)
+
+	vol := getVolume(data.Volume, data.Type)
+	newVars := fmt.Sprintf("RES=%s\nANGLE=%s\nVOL=%s", data.Resolution, data.Angle, vol)
+	if checkVars(newVars) {
+		log.Println("setting vars, vars=", newVars)
+		writeToFile(newVars)
 	}
 
 	localMD5 := getMD5(filename)
+	if localMD5 == data.MD5 {
+		log.Println("MD5 equals, exit program")
+		os.Exit(0)
+	}
+
+	log.Println("start dowloading...")
+	if err := download(filename, downloadURL); err != nil {
+		log.Println("error while downloading", err)
+		os.Exit(1)
+	}
+
+	newLocalMD5 := getMD5(filename)
+	if newLocalMD5 != data.MD5 {
+		log.Println("MD5 of downloaded file not equals")
+		os.Exit(1)
+	}
+
 	if localMD5 == "none" {
 		//download and run on create cmd`s
 		execCommands(data.OnCreate)
 	} else if localMD5 != data.MD5 {
 		//download and run on update cmd`s
 		execCommands(data.OnUpdate)
-	}
-
-	vol := getVolume(data.Volume, data.Type)
-
-	newVars := fmt.Sprintf("RES=%s\nANGLE=%s\nVOL=%s", data.Resolution, data.Angle, vol)
-	if checkVars(newVars) {
-		writeToFile(newVars)
 	}
 }
 
@@ -108,12 +121,12 @@ func execCommands(str string) {
 	for _, command := range commands {
 		args := strings.Split(command, " ")
 		name := args[0]
-		log.Println("exec ", name, args[1:])
+		log.Println("exec command: ", name, args[1:])
 		output, err := exec.Command(name, args[1:]...).Output()
 		if err != nil {
-			log.Println(err.Error())
+			log.Println("exec error: ", err.Error())
 		}
-		log.Println(string(output))
+		log.Println("exec success: ", string(output))
 	}
 }
 
@@ -176,8 +189,8 @@ func getVolume(vol, skin string) string {
 	t := time.Now().Format(layout)
 
 	check, _ := time.Parse(layout, t)
-	start, _ := time.Parse(layout, "22:00")
-	end, _ := time.Parse(layout, "07:00")
+	start, _ := time.Parse(layout, "22")
+	end, _ := time.Parse(layout, "06")
 
 	if inTimeSpan(start, end, check) {
 		vol = "-6000"
